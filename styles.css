@@ -162,6 +162,16 @@ a { color: var(--violet); }
 }
 .pick .link-btn { grid-column: 1 / -1; justify-self: end; }
 
+.clock-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+.clock-pick legend { font-weight: 800; margin-block-end: .6rem; padding: 0; }
+.optional { font-weight: 500; color: var(--ink-soft); }
+.clock-pick label { display: grid; gap: .25rem; font-size: .88rem; font-weight: 700; color: var(--ink-soft); }
+.clock-pick select {
+  min-block-size: 2.75rem; padding: .3rem .8rem; border: 2px solid var(--line); border-radius: 14px;
+  background: var(--surface-2); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer;
+}
+.clock-pick select:disabled { opacity: .5; cursor: default; }
+
 /* A chess piece, wherever one is shown. */
 .pc { --c: var(--piece-w); --l: var(--piece-w-line); display: inline-block; flex: none; }
 .pc.b { --c: var(--piece-b); --l: var(--piece-b-line); }
@@ -229,6 +239,14 @@ a { color: var(--violet); }
 .seat.turn { border-color: var(--sun); }
 .seat-name { font-weight: 800; }
 .seat .chip { inline-size: 2rem; block-size: 2rem; border-radius: 9px; }
+.clock {
+  min-inline-size: 4.2rem; padding: .15rem .6rem; border-radius: 10px; text-align: center;
+  background: var(--surface-2); color: var(--ink-soft); border: 2px solid transparent;
+  font: 800 1.15rem/1.4 ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums;
+}
+.clock.run { background: var(--ink); color: var(--bg); }
+.clock.low { color: var(--coral); border-color: var(--coral); }
+.clock.run.low { background: var(--coral); color: #fff; }
 .taken { display: inline-flex; align-items: center; flex-wrap: wrap; min-block-size: 1.3rem; }
 .taken .pc { inline-size: 1.25rem; block-size: 1.25rem; margin-inline-end: -.4rem; }
 .taken .lead { margin-inline-start: .7rem; font-size: .85rem; font-weight: 800; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
@@ -237,7 +255,7 @@ a { color: var(--violet); }
   border-radius: 14px; background: var(--surface-2); font-weight: 700;
 }
 .offer span { flex: 1; min-inline-size: 10rem; }
-.status { flex: 1; min-inline-size: 12rem; font-weight: 700; text-wrap: balance; }
+.status { flex: 1; min-inline-size: 7rem; font-weight: 700; text-wrap: balance; }
 .actions { display: flex; gap: .5rem; margin-inline-start: auto; min-block-size: 2.75rem; }
 .link-state { display: inline-flex; align-items: center; gap: .4rem; margin-inline-start: auto; font-size: .82rem; color: var(--ink-soft); }
 .link-state .dot { inline-size: .6rem; block-size: .6rem; border-radius: 50%; background: var(--ok); }

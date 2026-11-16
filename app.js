@@ -89,6 +89,8 @@ let cancelPromo = null;   // closes the promotion picker, if it is open
 let peerHere = false;
 let celebrated = false;
 let shownMoves = -1;
+let timeControl = null;   // host: the clock chosen for this game, { base, inc } in ms, or null
+let clock = null;         // { base, inc, ms: { w, b }, since }: time left as of `since`
 
 const board = new Board($('board'), { press: onPress, release: onRelease });
 
@@ -147,7 +149,8 @@ function setLobby(state, error = '') {
   $('lobby-error').textContent = error;
   if (state === 'waiting') {
     $('code-text').textContent = code;
-    $('waiting-text').textContent = `You play ${me === 'w' ? 'white' : 'black'}. Waiting for them to join…`;
+    const withClock = timeControl ? `, ${describeClock(timeControl)}` : '';
+    $('waiting-text').textContent = `You play ${me === 'w' ? 'white' : 'black'}${withClock}. Waiting for them to join…`;
   }
 }
 
@@ -232,6 +235,7 @@ function toLobby(error = '') {
   link?.close();
   link = null;
   game = null;
+  clock = null;
   peerHere = false;
   cancelPromo?.();
   stopMedia();
@@ -249,6 +253,7 @@ $('start-form').addEventListener('submit', (event) => {
   event.preventDefault();
   host = true;
   const side = new FormData(event.target).get('side');
+  timeControl = chosenClock();
   me = side === 'r' ? (crypto.getRandomValues(new Uint8Array(1))[0] & 1 ? 'w' : 'b') : side;
   code = newCode();
   connect();
@@ -289,11 +294,15 @@ addEventListener('pagehide', (event) => { if (!event.persisted) link?.close(); }
 
 // ── The game ─────────────────────────────────────────────────────────────────
 const send = (message) => link?.send(message);
-const sendSync = () => send({ t: 'sync', hostSide: me, moves: game.moves, result: game.result });
+const sendSync = () => send({
+  t: 'sync', hostSide: me, moves: game.moves, result: game.result,
+  tc: timeControl, ms: clock && { w: remaining('w'), b: remaining('b') },
+});
 
 function startGame() {
   game = Chess.newGame();
-  send({ t: 'start', hostSide: me });
+  clock = newClock(timeControl);
+  send({ t: 'start', hostSide: me, tc: timeControl });
   begin();
 }
 
@@ -311,6 +320,7 @@ function begin() {
   $('piece-me').replaceChildren(seatPiece(me));
   $('piece-them').replaceChildren(seatPiece(Chess.other(me)));
   render();
+  if (clock && !game.moves.length) toast(`Clock: ${describeClock(clock)}. It starts after white’s first move.`);
 }
 
 function seatPiece(color) {
@@ -325,6 +335,7 @@ const RESULTS = {
   fifty: 'Fifty moves without a capture or a pawn move.',
   material: 'Neither side has enough pieces left to checkmate.',
   agreed: 'You both agreed to call it even.',
+  time: 'The clock ran out, but a lone king can’t win.',
 };
 
 function render(how = {}) {
@@ -371,6 +382,7 @@ function render(how = {}) {
   $('link-text').textContent = peerHere ? 'Connected' : host ? `Away. They can rejoin with ${code}` : 'Disconnected';
 
   showMoves();
+  showClocks();
 
   $('over').hidden = playing;
   if (result) {
@@ -455,8 +467,11 @@ function tryMove(from, to) {
 }
 
 function commit(move) {
+  if (clockRuns() && remaining(me) <= 0) return tick();   // too late: the flag has fallen
+  const left = timeAfterMove(me);
   Chess.play(game, move);
-  send({ t: 'move', from: move.from, to: move.to, promo: move.promo ?? null, n: game.moves.length });
+  punch(me, left);
+  send({ t: 'move', from: move.from, to: move.to, promo: move.promo ?? null, n: game.moves.length, left });
   selected = null;
   drawOffer = null;                     // moving on turns down an offer, and withdraws your own
   render({ move });       // board.js settles a dragged piece without a glide
@@ -486,6 +501,112 @@ function askPromotion() {
 $('promo-cancel').addEventListener('click', () => cancelPromo?.());
 $('promo').addEventListener('keydown', (event) => { if (event.key === 'Escape') cancelPromo?.(); });
 
+// ── Clock ────────────────────────────────────────────────────────────────────
+// Each browser times its own player and reports the time left with every move,
+// so neither side is charged for the trip across the network. The clocks start
+// once white has moved.
+const DAY = 24 * 60 * 60 * 1000;
+
+function validClock(tc) {
+  const ok = tc && Number.isInteger(tc.base) && tc.base >= 1000 && tc.base <= DAY
+    && Number.isInteger(tc.inc) && tc.inc >= 0 && tc.inc <= 600000;
+  return ok ? { base: tc.base, inc: tc.inc } : null;
+}
+
+function newClock(tc, ms = null) {
+  if (!tc) return null;
+  const left = (color) => (Number.isFinite(ms?.[color]) && ms[color] >= 0 ? Math.min(ms[color], DAY) : tc.base);
+  return { ...tc, ms: { w: left('w'), b: left('b') }, since: performance.now() };
+}
+
+const describeClock = ({ base, inc }) => `${base / 60000} min each${inc ? `, plus ${inc / 1000} sec a move` : ''}`;
+
+const clockRuns = () => Boolean(clock && game && !game.result && game.moves.length);
+
+function remaining(color) {
+  if (!clock) return 0;
+  const ticking = clockRuns() && game.pos.turn === color;
+  return Math.max(0, clock.ms[color] - (ticking ? performance.now() - clock.since : 0));
+}
+
+/** What a player's clock will read once they have moved now. Ask before playing the move. */
+const timeAfterMove = (color) => (clock ? (clockRuns() ? remaining(color) + clock.inc : clock.ms[color]) : null);
+
+/** A move was played: set the mover's clock and start the other one. */
+function punch(mover, left) {
+  if (!clock) return;
+  clock.ms[mover] = left;
+  clock.since = performance.now();
+}
+
+/** End the game off the board, freezing the clocks where they are. */
+function endGame(result) {
+  if (clockRuns()) clock.ms[game.pos.turn] = remaining(game.pos.turn);
+  Chess.finish(game, result);
+}
+
+function timeOut(loser) {
+  const winner = Chess.other(loser);
+  endGame({ kind: 'time', winner: Chess.hasArmy(game.pos.board, winner) ? winner : null });
+  render();
+}
+
+function clockText(ms) {
+  if (ms < 10000) return `0:0${(Math.floor(ms / 100) / 10).toFixed(1)}`;
+  const total = Math.ceil(ms / 1000);
+  const two = (n) => String(n).padStart(2, '0');
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  return h ? `${h}:${two(m)}:${two(total % 60)}` : `${m}:${two(total % 60)}`;
+}
+
+function showClocks() {
+  for (const [id, color] of [['clock-me', me], ['clock-them', Chess.other(me)]]) {
+    const el = $(id);
+    el.hidden = !clock;
+    if (!clock) continue;
+    const left = remaining(color);
+    const text = clockText(left);
+    if (el.textContent !== text) el.textContent = text;
+    el.classList.toggle('run', clockRuns() && game.pos.turn === color);
+    el.classList.toggle('low', left < 20000);
+  }
+}
+
+function tick() {
+  if (!game || !clock) return;
+  showClocks();
+  if (!clockRuns()) return;
+  const turn = game.pos.turn;
+  if (remaining(turn) > 0) return;
+  // Our own flag falls at once. Theirs gets a moment's grace, in case a move
+  // they made in time is still on its way (or they are no longer there to say).
+  const overdue = performance.now() - clock.since - clock.ms[turn];
+  if (turn !== me && overdue < 3000) return;
+  send({ t: 'time', loser: turn });
+  timeOut(turn);
+}
+setInterval(tick, 100);
+
+// The start form's clock choice, remembered for next time.
+function chosenClock() {
+  const minutes = Number($('tc-time').value);
+  return validClock({ base: minutes * 60000, inc: minutes ? Number($('tc-inc').value) * 1000 : 0 });
+}
+try {
+  const saved = JSON.parse(localStorage.getItem('chess-clock'));
+  for (const [id, value] of [['tc-time', saved?.time], ['tc-inc', saved?.inc]]) {
+    if ([...$(id).options].some((o) => o.value === String(value))) $(id).value = String(value);
+  }
+} catch {}
+function clockChoiceChanged() {
+  $('tc-inc').disabled = $('tc-time').value === '0';
+  try { localStorage.setItem('chess-clock', JSON.stringify({ time: $('tc-time').value, inc: $('tc-inc').value })); } catch {}
+}
+$('tc-time').addEventListener('change', clockChoiceChanged);
+$('tc-inc').addEventListener('change', clockChoiceChanged);
+$('tc-inc').disabled = $('tc-time').value === '0';
+
 // ── Draws, resigning, rematches ──────────────────────────────────────────────
 $('draw').addEventListener('click', () => {
   if (!game || game.result || drawOffer) return;
@@ -499,7 +620,7 @@ $('draw').addEventListener('click', () => {
 $('draw-yes').addEventListener('click', () => {
   if (!game || game.result || drawOffer !== 'received') return;
   send({ t: 'draw-accept' });
-  Chess.finish(game, { kind: 'agreed', winner: null });
+  endGame({ kind: 'agreed', winner: null });
   render();
 });
 
@@ -514,7 +635,7 @@ $('resign-yes').addEventListener('click', () => {
   $('resign-ask').close();
   if (!game || game.result) return;
   send({ t: 'resign' });
-  Chess.finish(game, { kind: 'resign', winner: Chess.other(me) });
+  endGame({ kind: 'resign', winner: Chess.other(me) });
   render();
 });
 
@@ -540,6 +661,9 @@ function celebrate() {
   } else if (kind === 'resign') {
     $('over-title').textContent = won ? 'You win! 🎉' : 'You resigned';
     $('over-sub').textContent = won ? 'Your opponent resigned.' : 'Your opponent wins. Fancy a rematch?';
+  } else if (kind === 'time' && winner) {
+    $('over-title').textContent = won ? 'You win on time! 🎉' : 'Out of time';
+    $('over-sub').textContent = won ? 'Your opponent’s clock ran out.' : 'Your opponent wins. Fancy a rematch?';
   } else {
     $('over-title').textContent = 'It’s a draw 🤝';
     $('over-sub').textContent = RESULTS[kind];
@@ -567,6 +691,7 @@ function onMessage(message) {
       if (host || !['w', 'b'].includes(message.hostSide)) return;
       me = Chess.other(message.hostSide);
       game = Chess.newGame();
+      clock = newClock(validClock(message.tc));
       return begin();
     case 'sync': {
       if (host || !['w', 'b'].includes(message.hostSide)) return;
@@ -574,6 +699,7 @@ function onMessage(message) {
       if (!rebuilt) return;
       me = Chess.other(message.hostSide);
       game = rebuilt;
+      clock = newClock(validClock(message.tc), message.ms);
       return begin();
     }
     case 'resync':
@@ -586,8 +712,11 @@ function onMessage(message) {
       return theirMove(message);
     case 'resign':
       if (!game || game.result) return;
-      Chess.finish(game, { kind: 'resign', winner: me });
+      endGame({ kind: 'resign', winner: me });
       return render();
+    case 'time':
+      if (!game || game.result || !clockRuns() || message.loser !== game.pos.turn) return;
+      return timeOut(message.loser);
     case 'draw-offer':
       if (!game || game.result) return;
       drawOffer = 'received';
@@ -595,7 +724,7 @@ function onMessage(message) {
       return render();
     case 'draw-accept':
       if (!game || game.result || drawOffer !== 'sent') return;
-      Chess.finish(game, { kind: 'agreed', winner: null });
+      endGame({ kind: 'agreed', winner: null });
       return render();
     case 'draw-decline':
       if (drawOffer !== 'sent') return;
@@ -611,7 +740,11 @@ function theirMove(message) {
   if (!game || game.result || game.pos.turn === me || message.n !== game.moves.length + 1) return outOfStep();
   const move = Chess.findMove(game, message.from, message.to, message.promo);
   if (!move) return outOfStep();
+  const them = game.pos.turn;
+  const estimate = timeAfterMove(them);
   Chess.play(game, move);
+  // Each player's own clock is the one that counts; ours of theirs is only an estimate.
+  punch(them, Number.isFinite(message.left) && message.left >= 0 ? Math.min(message.left, DAY) : estimate);
   drawOffer = null;
   render({ move });
 }

@@ -153,7 +153,7 @@ export const inCheck = (pos) => attacked(pos.board, kingSquare(pos.board, pos.tu
 
 // ── A game ───────────────────────────────────────────────────────────────────
 // result: null while playing, else { kind, winner } where kind is 'checkmate',
-// 'stalemate', 'repetition', 'fifty', 'material', 'resign' or 'agreed', and
+// 'stalemate', 'repetition', 'fifty', 'material', 'resign', 'agreed' or 'time', and
 // winner is 'w', 'b' or null for a draw.
 
 export function newGame() {
@@ -238,10 +238,13 @@ export function replay(moves, result = null) {
     const move = m && findMove(game, m.from, m.to, m.promo);
     if (!move || !play(game, move)) return null;
   }
-  const ok = result && ['resign', 'agreed'].includes(result.kind) && ['w', 'b', null].includes(result.winner);
+  const ok = result && ['resign', 'agreed', 'time'].includes(result.kind) && ['w', 'b', null].includes(result.winner);
   if (ok) finish(game, { kind: result.kind, winner: result.winner });
   return game;
 }
+
+/** Does this side have anything besides its king? (If not, it can't win on time.) */
+export const hasArmy = (board, color) => board.some((piece) => piece && piece.toLowerCase() !== 'k' && colorOf(piece) === color);
 
 /**
  * What each side has taken, and who is ahead.

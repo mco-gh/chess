@@ -168,6 +168,7 @@ const PROBLEMS = {
   browser: 'This browser can’t make peer-to-peer connections.',
   lost: 'The connection dropped before the game started.',
   left: 'The other player left.',
+  unreachable: 'Couldn’t connect to the other player. Try again, or try a different network or browser.',
 };
 
 function connect() {

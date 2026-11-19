@@ -44,7 +44,7 @@
   <main id="lobby" class="lobby">
     <section class="pitch">
       <h1>Your move, <em>wherever</em> you are.</h1>
-      <p class="sub">Chess with a friend, face to face or far apart. No sign-up, no downloads: start a game and share the code.</p>
+      <p class="sub">Chess with a friend, face to face or far apart. No sign-up, no downloads: start a game and share the code, or take on the computer.</p>
       <div class="preview-wrap"><div id="preview" aria-hidden="true"></div></div>
     </section>
 
@@ -52,14 +52,15 @@
       <h2 id="card-title" class="visually-hidden">Play</h2>
 
       <div id="setup">
+        <fieldset class="pick">
+          <legend>Pick your color</legend>
+          <label class="pick-side"><input type="radio" name="side" value="w" checked><span class="pc chip w" data-piece="K" aria-hidden="true"></span>White</label>
+          <label class="pick-side"><input type="radio" name="side" value="b"><span class="pc chip b" data-piece="k" aria-hidden="true"></span>Black</label>
+          <label class="pick-side"><input type="radio" name="side" value="r"><span class="chip either" aria-hidden="true">?</span>Random</label>
+          <button class="link-btn" type="button" command="show-modal" commandfor="settings">Change colors</button>
+        </fieldset>
+
         <form id="start-form" class="stack">
-          <fieldset class="pick">
-            <legend>Pick your color</legend>
-            <label class="pick-side"><input type="radio" name="side" value="w" checked><span class="pc chip w" data-piece="K" aria-hidden="true"></span>White</label>
-            <label class="pick-side"><input type="radio" name="side" value="b"><span class="pc chip b" data-piece="k" aria-hidden="true"></span>Black</label>
-            <label class="pick-side"><input type="radio" name="side" value="r"><span class="chip either" aria-hidden="true">?</span>Random</label>
-            <button class="link-btn" type="button" command="show-modal" commandfor="settings">Change colors</button>
-          </fieldset>
           <fieldset class="clock-pick">
             <legend>Clock <span class="optional">(optional)</span></legend>
             <label>Time each<select name="time" id="tc-time"><option value="0">No clock</option><option value="1">1 min</option><option value="2">2 min</option><option value="3">3 min</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="20">20 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="90">90 min</option></select></label>
@@ -76,6 +77,20 @@
           <label class="visually-hidden" for="join-code">Game code</label>
           <input id="join-code" name="code" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="60" placeholder="abc-def" required>
           <button class="btn" type="submit">Join</button>
+        </form>
+
+        <p class="or"><span>or play the computer</span></p>
+
+        <form id="cpu-form" class="stack">
+          <fieldset class="levels">
+            <legend>Opponent strength <span class="optional">(Elo rating)</span></legend>
+            <div class="level-list" id="level-list"></div>
+            <p class="level-blurb" id="level-blurb" aria-live="polite"></p>
+          </fieldset>
+          <button class="btn big cpu-btn" type="submit">
+            <span aria-hidden="true">🤖</span> Play the computer
+          </button>
+          <p class="cpu-loading" id="cpu-loading" hidden><span class="pulse" aria-hidden="true"></span>Starting the engine…</p>
         </form>
       </div>
 
@@ -148,6 +163,8 @@
     </section>
 
     <aside class="side" aria-label="Video, chat and moves">
+      <p class="solo-note" id="solo-note" hidden></p>
+      <div class="social" id="social">
       <div class="videos" id="videos" data-them="off" data-me="off">
         <div class="tile them">
           <video id="video-them" autoplay playsinline></video>
@@ -175,6 +192,7 @@
           <input id="chat-input" type="text" maxlength="500" autocomplete="off" placeholder="Type a message" enterkeyhint="send">
           <button class="btn small primary" type="submit">Send</button>
         </form>
+      </div>
       </div>
 
       <div class="chat">
@@ -217,7 +235,7 @@
   <!-- ───────────── Info ───────────── -->
   <dialog id="info" class="sheet wide" aria-labelledby="info-title" closedby="any">
     <h2 id="info-title">About Chess</h2>
-    <p>Chess for two people, wherever they are. There are no accounts, no ads and no saved games: just a board and a friend.</p>
+    <p>Chess for two people, wherever they are. There are no accounts, no ads and no saved games: just a board and a friend. No friend handy? Play the computer.</p>
 
     <h3>Starting a game</h3>
     <ol>
@@ -236,6 +254,10 @@
       <li><strong>Play again</strong> starts a rematch with the colors swapped and the same clock.</li>
     </ul>
 
+    <h3>Playing the computer</h3>
+    <p>Pick a strength and choose <strong>Play the computer</strong>. Strengths are Elo ratings, the scale chess uses: about 1350 for a club newcomer, 2200 for a master, 2500 for a grandmaster. Beginner and Novice are gentler still. <strong>Max</strong> is the engine at full strength, far beyond any human.</p>
+    <p>The computer is <a href="https://stockfishchess.org/" target="_blank" rel="noopener">Stockfish</a>, the free, open-source chess engine, running right in your browser (so it works offline too). Its ratings are its own estimates, calibrated against other engines, so treat them as a guide. There’s no clock against the computer, and it doesn’t take draw offers.</p>
+
     <h3>Video and chat</h3>
     <p>Turn on your camera or microphone at any time during a game, or just type. Each of you decides separately what to share.</p>
 
@@ -250,7 +272,7 @@
   <!-- ───────────── Resign ───────────── -->
   <dialog id="resign-ask" class="sheet" aria-labelledby="resign-title">
     <h2 id="resign-title">Resign this game?</h2>
-    <p>Your opponent wins. You can play again afterwards.</p>
+    <p id="resign-text">Your opponent wins. You can play again afterwards.</p>
     <div class="sheet-actions">
       <button class="btn ghost" type="button" data-close autofocus>Keep playing</button>
       <button class="btn danger" type="button" id="resign-yes">Resign</button>
@@ -260,7 +282,7 @@
   <!-- ───────────── Leave ───────────── -->
   <dialog id="leave" class="sheet" aria-labelledby="leave-title">
     <h2 id="leave-title">Leave this game?</h2>
-    <p>The game ends for both of you and can’t be resumed.</p>
+    <p id="leave-text">The game ends for both of you and can’t be resumed.</p>
     <div class="sheet-actions">
       <button class="btn ghost" type="button" data-close autofocus>Keep playing</button>
       <button class="btn danger" type="button" id="leave-yes">Leave</button>

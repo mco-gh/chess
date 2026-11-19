@@ -2,6 +2,14 @@
 
 Peer-to-peer chess for two, played in the browser at [mco.dev/chess](https://mco.dev/chess/).
 
+You can also play the computer. It is [Stockfish](https://stockfishchess.org/) 19, the
+free, open-source engine, in the lite single-threaded WebAssembly build from
+[Stockfish.js](https://github.com/nmrugg/stockfish.js) (vendored, unmodified, in
+`vendor/stockfish/` with its GPL v3 license). It runs as a Web Worker in the player's
+browser; `engine.js` talks to it over UCI. Strengths from 1350 to 2500 use Stockfish's own
+Elo limit (`UCI_Elo`, which can't go below 1320); Beginner and Novice instead ask for its
+top few moves and pick among them at random, favoring the better ones; Max is full strength.
+
 It is a static app with no build step: open `index.html` from any web server. The two players connect directly to each other using [PeerJS](https://peerjs.com/) (vendored in `vendor/`).
 
 This repo is mounted in [mco-gh/mco.dev](https://github.com/mco-gh/mco.dev) as a git submodule at `static/chess`. After pushing a change here, update the submodule pointer there to publish it:

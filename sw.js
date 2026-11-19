@@ -6,6 +6,7 @@ const CACHE = "chess-v1";
 const PRECACHE = [
   "./",
   "./app.js",
+  "./engine.js",
   "./board.js",
   "./chess.js",
   "./icon.svg",

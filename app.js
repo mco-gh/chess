@@ -3,6 +3,7 @@
 import * as Chess from './chess.js';
 import { Board, pieceEl, pieceSVG } from './board.js';
 import { openLink, newCode, cleanCode } from './net.js';
+import * as Engine from './engine.js';
 
 const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -91,6 +92,8 @@ let celebrated = false;
 let shownMoves = -1;
 let timeControl = null;   // host: the clock chosen for this game, { base, inc } in ms, or null
 let clock = null;         // { base, inc, ms: { w, b }, since }: time left as of `since`
+let solo = null;          // the computer's level when playing it, else null
+let thinking = false;     // the computer is choosing its move
 
 const board = new Board($('board'), { press: onPress, release: onRelease });
 
@@ -236,6 +239,9 @@ function toLobby(error = '') {
   link?.close();
   link = null;
   game = null;
+  if (solo) Engine.stop();
+  solo = null;
+  thinking = false;
   clock = null;
   peerHere = false;
   cancelPromo?.();
@@ -250,12 +256,18 @@ function toLobby(error = '') {
   setLobby('idle', error);
 }
 
+/** The color picked in the lobby, with Random settled. */
+function pickedSide() {
+  const side = document.querySelector('input[name="side"]:checked')?.value ?? 'w';
+  return side === 'r' ? (crypto.getRandomValues(new Uint8Array(1))[0] & 1 ? 'w' : 'b') : side;
+}
+
 $('start-form').addEventListener('submit', (event) => {
   event.preventDefault();
   host = true;
-  const side = new FormData(event.target).get('side');
+  solo = null;
   timeControl = chosenClock();
-  me = side === 'r' ? (crypto.getRandomValues(new Uint8Array(1))[0] & 1 ? 'w' : 'b') : side;
+  me = pickedSide();
   code = newCode();
   connect();
 });
@@ -290,6 +302,78 @@ if (navigator.share) {
   });
 }
 
+// ── Playing the computer ─────────────────────────────────────────────────────
+let level = '1350';
+try { if (Engine.LEVELS.some((l) => l.id === localStorage.getItem('chess-level'))) level = localStorage.getItem('chess-level'); } catch {}
+
+Engine.LEVELS.forEach((l, k) => {
+  const label = document.createElement('label');
+  label.className = 'level';
+  const radio = Object.assign(document.createElement('input'), { type: 'radio', name: 'level', value: l.id, checked: l.id === level });
+  radio.setAttribute('aria-label', l.elo ? `${l.name} Elo` : l.name);
+  const bars = document.createElement('span');
+  bars.className = 'bars';
+  bars.setAttribute('aria-hidden', 'true');
+  Engine.LEVELS.forEach((_, n) => {
+    const bar = document.createElement('i');
+    bar.style.blockSize = `${25 + (75 * n) / (Engine.LEVELS.length - 1)}%`;
+    if (n <= k) bar.className = 'on';
+    bars.append(bar);
+  });
+  label.append(radio, bars, l.name);
+  radio.addEventListener('change', () => {
+    level = l.id;
+    try { localStorage.setItem('chess-level', level); } catch {}
+    showBlurb();
+  });
+  $('level-list').append(label);
+});
+const levelInfo = () => Engine.LEVELS.find((l) => l.id === (solo ?? level));
+const showBlurb = () => { $('level-blurb').textContent = levelInfo().blurb; };
+showBlurb();
+
+$('cpu-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!$('cpu-loading').hidden) return;
+  $('cpu-loading').hidden = false;
+  $('lobby-error').hidden = true;
+  try {
+    await Engine.boot();
+  } catch (error) {
+    $('cpu-loading').hidden = true;
+    return setLobby('idle', `${error.message} Try reloading the page.`);
+  }
+  $('cpu-loading').hidden = true;
+  host = true;
+  solo = level;
+  timeControl = null;
+  me = pickedSide();
+  startGame();
+});
+
+/** The computer's turn: ask Stockfish, then play its move after a natural pause. */
+async function computerMove() {
+  const current = game;
+  thinking = true;
+  render();
+  const started = performance.now();
+  let move = null;
+  try {
+    const answer = await Engine.bestMove(game.moves, solo);
+    const sq = (name) => 'abcdefgh'.indexOf(name[0]) + (8 - Number(name[1])) * 8;
+    move = Chess.findMove(game, sq(answer.slice(0, 2)), sq(answer.slice(2, 4)), answer[4] ?? null);
+  } catch (error) {
+    if (game === current) toast(`${error.message} It played a random move instead.`);
+  }
+  if (game !== current || game.result) return;
+  move ??= game.legal[Math.floor(Math.random() * game.legal.length)];
+  await sleep(Math.max(0, 650 - (performance.now() - started)));
+  if (game !== current || game.result) return;
+  thinking = false;
+  Chess.play(game, move);
+  render({ move });
+}
+
 // Tell the other player when this tab goes away for good.
 addEventListener('pagehide', (event) => { if (!event.persisted) link?.close(); });
 
@@ -303,7 +387,8 @@ const sendSync = () => send({
 function startGame() {
   game = Chess.newGame();
   clock = newClock(timeControl);
-  send({ t: 'start', hostSide: me, tc: timeControl });
+  if (solo) Engine.newGame();
+  else send({ t: 'start', hostSide: me, tc: timeControl });
   begin();
 }
 
@@ -313,9 +398,22 @@ function begin() {
   selected = null;
   drawOffer = null;
   celebrated = false;
+  thinking = false;
   shownMoves = -1;
   $('confetti').replaceChildren();
   show('game');
+  $('game').classList.toggle('solo', Boolean(solo));
+  $('social').hidden = Boolean(solo);
+  $('solo-note').hidden = !solo;
+  $('link-state').hidden = Boolean(solo);
+  const info = levelInfo();
+  const named = info.elo ? `${info.name} Elo` : info.name;
+  document.querySelector('#seat-them .seat-name').textContent = solo ? `Computer · ${named}` : 'Opponent';
+  if (solo) {
+    $('solo-note').replaceChildren('🤖 Playing the computer', Object.assign(document.createElement('small'), { textContent: `${named}: ${info.blurb}` }));
+  }
+  $('leave-text').textContent = solo ? 'This game ends here.' : 'The game ends for both of you and can’t be resumed.';
+  $('resign-text').textContent = solo ? 'The computer wins. You can play again afterwards.' : 'Your opponent wins. You can play again afterwards.';
   board.setView(me);
   board.sync(game.pos.board, { instant: true });
   $('piece-me').replaceChildren(seatPiece(me));
@@ -370,11 +468,13 @@ function render(how = {}) {
   if (result) status = 'Game over.';
   else if (!game.moves.length) status = myTurn ? 'You play white. Your move.' : 'You play black. White moves first.';
   else if (myTurn) status = game.check ? 'Check! Your move.' : 'Your move.';
+  else if (solo) status = game.check ? 'Check! The computer is thinking…' : 'The computer is thinking…';
   else status = game.check ? 'Check! Waiting for your opponent…' : 'Waiting for your opponent…';
   $('status').textContent = status;
   document.title = myTurn && playing ? `Your move · ${TITLE}` : TITLE;
 
-  $('draw').hidden = $('resign').hidden = !playing;
+  $('resign').hidden = !playing;
+  $('draw').hidden = !playing || Boolean(solo);
   $('draw').disabled = drawOffer === 'sent';
   $('draw').textContent = drawOffer === 'sent' ? 'Draw offered' : 'Offer draw';
   $('offer').hidden = !(playing && drawOffer === 'received');
@@ -390,6 +490,7 @@ function render(how = {}) {
     if ($('resign-ask').open) $('resign-ask').close();
     celebrate();
   }
+  if (solo && playing && !myTurn && !thinking) computerMove();
 }
 
 function showTaken(el, pieces, lead) {
@@ -648,6 +749,7 @@ function rematch() {
 
 $('again').addEventListener('click', () => {
   if (!game?.result) return;
+  if (solo) return startGame();         // same colors: you picked yours
   if (host) return peerHere ? rematch() : toast('Your opponent isn’t connected.');
   send({ t: 'again' });
   toast('Asked your opponent’s browser for a new game…');
@@ -658,10 +760,10 @@ function celebrate() {
   const won = winner === me;
   if (kind === 'checkmate') {
     $('over-title').textContent = won ? 'Checkmate! You win 🎉' : 'Checkmate';
-    $('over-sub').textContent = won ? 'Nicely played.' : 'Your opponent wins. Fancy a rematch?';
+    $('over-sub').textContent = won ? 'Nicely played.' : `${solo ? 'The computer' : 'Your opponent'} wins. Fancy a rematch?`;
   } else if (kind === 'resign') {
     $('over-title').textContent = won ? 'You win! 🎉' : 'You resigned';
-    $('over-sub').textContent = won ? 'Your opponent resigned.' : 'Your opponent wins. Fancy a rematch?';
+    $('over-sub').textContent = won ? 'Your opponent resigned.' : `${solo ? 'The computer' : 'Your opponent'} wins. Fancy a rematch?`;
   } else if (kind === 'time' && winner) {
     $('over-title').textContent = won ? 'You win on time! 🎉' : 'Out of time';
     $('over-sub').textContent = won ? 'Your opponent’s clock ran out.' : 'Your opponent wins. Fancy a rematch?';

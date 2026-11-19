@@ -468,3 +468,27 @@ dialog.sheet[open] { display: grid; gap: .9rem; }
 .copyright { margin: 0; padding: 1.5rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); text-align: center; font-size: 0.8rem; color: var(--ink-soft); }
 /* Only on the start screen: during a game or call the main view fills the window. */
 body:has(#lobby[hidden]) .copyright { display: none; }
+
+/* ── Playing the computer ── */
+#setup > .pick { margin-block-end: 1rem; }
+.levels legend { font-weight: 800; padding: 0; margin-block-end: .6rem; }
+.level-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; }
+.level {
+  position: relative; display: grid; justify-items: center; gap: .25rem;
+  padding: .45rem .3rem; border: 2px solid var(--line); border-radius: 14px;
+  font-weight: 800; font-size: .9rem; font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: border-color .15s, background-color .15s;
+}
+.level input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.level:has(input:checked) { border-color: var(--violet); background: var(--surface-2); }
+.level:has(input:focus-visible) { outline: 3px solid var(--violet); outline-offset: 3px; }
+.level .bars { display: inline-flex; align-items: end; gap: 2px; block-size: .75rem; }
+.level .bars i { inline-size: 3px; border-radius: 2px; background: var(--line); }
+.level .bars i.on { background: var(--violet); }
+.level-blurb { margin-block-start: .5rem; font-size: .88rem; color: var(--ink-soft); min-block-size: 1.3em; }
+.cpu-btn { border-color: var(--violet); }
+.cpu-loading { display: flex; align-items: center; gap: .6rem; color: var(--ink-soft); }
+.solo-note { font-weight: 700; }
+.solo-note small { display: block; font-weight: 500; color: var(--ink-soft); }
+.social { display: grid; gap: .8rem; }
+.social > * { min-inline-size: 0; }

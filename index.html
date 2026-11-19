@@ -211,6 +211,11 @@
   <dialog id="settings" class="sheet" aria-labelledby="settings-title" closedby="any">
     <h2 id="settings-title">Settings</h2>
 
+    <fieldset class="piece-styles">
+      <legend>Pieces</legend>
+      <div class="style-list" id="style-list"></div>
+    </fieldset>
+
     <fieldset class="themes">
       <legend>Themes</legend>
       <div class="theme-list" id="theme-list"></div>
@@ -225,7 +230,7 @@
       <label><input type="color" data-color="frame"><span>Frame</span></label>
       <label><input type="color" data-color="glow"><span>Highlights</span></label>
     </fieldset>
-    <p class="help">Colors are saved in this browser. Your opponent picks their own.</p>
+    <p class="help">Saved in this browser. Your opponent picks their own pieces and colors.</p>
 
     <div class="sheet-actions">
       <button class="btn primary" type="button" data-close autofocus>Done</button>

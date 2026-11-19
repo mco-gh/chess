@@ -2,22 +2,11 @@
 // tells it what the position is and which squares to light up, and it reports
 // presses and drags back.
 import { squareName, colorOf } from './chess.js';
+import { pieceSVG, pieceStyle } from './pieces.js';
+
+export { pieceSVG };
 
 const NAMES = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
-const BASE = '<rect x="22" y="80" width="56" height="11" rx="5.500"/>';
-const FOOT = '<path d="M33 64C37 70 33 76 28 80H72C67 76 63 70 67 64Z"/>';
-
-// Each piece on a 100 × 100 canvas. Class "d" is a detail line, "s" a solid dot.
-const ART = {
-  p: `<path d="M41 46C44 60 35 70 29 80H71C65 70 56 60 59 46Z"/><circle cx="50" cy="32" r="14"/><rect x="35" y="43" width="30" height="7" rx="3.500"/>${BASE}`,
-  r: `<path d="M27 16H39V25H44V16H56V25H61V16H73V36L66 44V68L74 80H26L34 68V44L27 36Z"/><path class="d" d="M34 44H66"/>${BASE}`,
-  n: `<path d="M32 80C33 66 46 58 45 45C39 50 33 55 26 53L19 46C22 38 30 31 34 23L32 11L44 18C63 17 76 36 71 80Z"/><circle class="s" cx="39" cy="31" r="3"/><path class="d" d="M56 27C63 36 65 50 62 64"/>${BASE}`,
-  b: `<path d="M40 58C44 68 36 74 29 80H71C64 74 56 68 60 58Z"/><path d="M50 14C63 26 69 37 64 48C62 54 56 58 50 58C44 58 38 54 36 48C31 37 37 26 50 14Z"/><circle cx="50" cy="11" r="5"/><path class="d" d="M56 26L47 39"/><rect x="35" y="55" width="30" height="7" rx="3.500"/>${BASE}`,
-  q: `<path d="M19 30L32 64H68L81 30L66 47L65 21L57 45L50 17L43 45L35 21L34 47Z"/>${FOOT}<circle cx="19" cy="27" r="5"/><circle cx="35" cy="18" r="5"/><circle cx="50" cy="13" r="5"/><circle cx="65" cy="18" r="5"/><circle cx="81" cy="27" r="5"/><rect x="29" y="61" width="42" height="7" rx="3.500"/>${BASE}`,
-  k: `<path d="M46 5H54V11H61V19H54V28H46V19H39V11H46Z"/><path d="M50 27C41 27 37 34 39 41C29 33 16 40 21 54L32 66H68L79 54C84 40 71 33 61 41C63 34 59 27 50 27Z"/>${FOOT}<rect x="29" y="61" width="42" height="7" rx="3.500"/>${BASE}`,
-};
-
-export const pieceSVG = (type) => `<svg viewBox="0 0 100 100" aria-hidden="true">${ART[type]}</svg>`;
 
 /** A piece as an element, for use on or off the board. */
 export function pieceEl(piece, tag = 'span') {
@@ -26,10 +15,21 @@ export function pieceEl(piece, tag = 'span') {
   return el;
 }
 function setPiece(el, piece) {
-  if (el.dataset.p === piece) return;
+  if (el.dataset.p === piece && el.dataset.style === pieceStyle()) return;
   el.dataset.p = piece;
+  el.dataset.style = pieceStyle();
   el.className = `pc ${colorOf(piece)}`;
   el.innerHTML = pieceSVG(piece.toLowerCase());
+}
+
+/** Redraw every piece on the page, after the piece style changes. */
+export function redrawPieces() {
+  for (const el of document.querySelectorAll('.pc')) {
+    const piece = el.dataset.p ?? el.dataset.piece;
+    if (!piece) continue;
+    el.innerHTML = pieceSVG(piece.toLowerCase());
+    if (el.dataset.p) el.dataset.style = pieceStyle();
+  }
 }
 
 export class Board {

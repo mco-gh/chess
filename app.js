@@ -1,13 +1,17 @@
 // Chess: the page logic. chess.js knows the rules, board.js draws, net.js
 // connects; this file runs the lobby, the game flow, chat, video and settings.
 import * as Chess from './chess.js';
-import { Board, pieceEl, pieceSVG } from './board.js';
+import { Board, pieceEl, pieceSVG, redrawPieces } from './board.js';
+import { PIECE_STYLES, setPieceStyle, pieceStyle } from './pieces.js';
 import { openLink, newCode, cleanCode } from './net.js';
 import * as Engine from './engine.js';
 
 const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TITLE = document.title;
+
+// The piece style comes first: the boards below draw with it.
+try { setPieceStyle(localStorage.getItem('chess-pieces')); } catch {}
 
 // ── Colors ───────────────────────────────────────────────────────────────────
 const THEMES = {
@@ -75,6 +79,35 @@ for (const input of document.querySelectorAll('[data-color]')) {
 applyColors();
 
 for (const el of document.querySelectorAll('[data-piece]')) el.innerHTML = pieceSVG(el.dataset.piece.toLowerCase());
+
+// ── Piece styles ─────────────────────────────────────────────────────────────
+for (const style of PIECE_STYLES) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'piece-style';
+  button.dataset.style = style.id;
+  const sample = document.createElement('span');
+  sample.className = 'style-sample';
+  sample.setAttribute('aria-hidden', 'true');
+  for (const piece of ['N', 'q']) {
+    const el = document.createElement('span');
+    el.className = `pc ${piece === 'N' ? 'w' : 'b'}`;
+    el.innerHTML = pieceSVG(piece.toLowerCase(), style.id);
+    sample.append(el);
+  }
+  button.append(sample, style.name);
+  button.addEventListener('click', () => {
+    setPieceStyle(style.id);
+    try { localStorage.setItem('chess-pieces', style.id); } catch {}
+    showPieceStyle();
+    redrawPieces();
+  });
+  $('style-list').append(button);
+}
+function showPieceStyle() {
+  for (const button of $('style-list').children) button.setAttribute('aria-pressed', String(button.dataset.style === pieceStyle()));
+}
+showPieceStyle();
 
 // ── State ────────────────────────────────────────────────────────────────────
 let link = null;          // the connection, or null

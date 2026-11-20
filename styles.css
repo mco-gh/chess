@@ -506,3 +506,13 @@ body:has(#lobby[hidden]) .copyright { display: none; }
 .style-sample { display: flex; gap: 2px; padding: .25rem .35rem; border-radius: 10px; background: linear-gradient(90deg, var(--sq-light) 50%, var(--sq-dark) 50%); }
 .style-sample .pc { inline-size: 1.9rem; block-size: 1.9rem; }
 .piece-style svg { stroke-width: var(--sw); }
+
+/* Back to the list of all of Marc's apps, on the credit line. */
+.credit .sep { margin-inline: 0.4em; }
+.apps-link { white-space: nowrap; }
+.apps-link svg { display: inline; inline-size: 1.05em; block-size: 1.05em; margin-inline-end: 0.25em; vertical-align: -0.18em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* Phones: too narrow for one line, so the link gets its own line instead of wrapping after the dot. */
+@media (max-width: 40rem) {
+  .credit .sep { display: none; }
+  .apps-link { display: block; margin-block-start: 0.15rem; }
+}

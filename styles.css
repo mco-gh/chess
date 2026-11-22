@@ -331,6 +331,8 @@ a { color: var(--violet); }
 }
 .over-title { font-size: clamp(1.4rem, 4vw, 2.2rem); font-weight: 900; text-wrap: balance; }
 .over-sub { margin-block-end: .4rem; text-wrap: balance; }
+.over-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
+.over-actions a.btn { color: var(--ink); text-decoration: none; }
 .confetti { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; border-radius: 3.5%; }
 .confetti i { display: none; }
 @media (prefers-reduced-motion: no-preference) {

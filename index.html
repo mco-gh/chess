@@ -141,7 +141,10 @@
         <div class="over" id="over" hidden>
           <p class="over-title" id="over-title"></p>
           <p class="over-sub" id="over-sub"></p>
-          <button class="btn primary" type="button" id="again">Play again</button>
+          <div class="over-actions">
+            <button class="btn primary" type="button" id="again">Play again</button>
+            <a class="btn" id="analyze-link" href="../analyze/" target="_blank" rel="noopener"><span aria-hidden="true">🔍</span> Analyze this game</a>
+          </div>
         </div>
       </div>
 
@@ -263,6 +266,7 @@
       <li>The game ends by checkmate or resignation, or in a draw by stalemate, agreement, the same position three times, fifty moves with no capture or pawn move, or too few pieces left to mate.</li>
       <li>With a clock, each of you gets the chosen time for the whole game, plus any added time after every move. The clocks start once white has moved. Run out and you lose, unless your opponent has only a king left, which is a draw.</li>
       <li><strong>Play again</strong> starts a rematch with the colors swapped and the same clock.</li>
+      <li><strong>Analyze this game</strong> opens the finished game in <a href="../analyze/" target="_blank" rel="noopener">Analyze</a>, which steps through it with Stockfish: who was winning, the best moves, and every blunder and great move.</li>
     </ul>
 
     <h3>Playing the computer</h3>

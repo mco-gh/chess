@@ -788,7 +788,48 @@ $('again').addEventListener('click', () => {
   toast('Asked your opponent’s browser for a new game…');
 });
 
+// ── Post-mortem: the finished game, opened in Analyze ────────────────────────
+const TERMINATION = {
+  stalemate: 'Stalemate', repetition: 'Threefold repetition', fifty: 'Fifty-move rule',
+  material: 'Insufficient material', agreed: 'Draw agreed', time: 'Time forfeit',
+};
+
+/** The game as PGN, the format every chess program reads. */
+function gamePGN() {
+  const info = levelInfo();
+  const them = solo ? `Computer (${info.elo ? `${info.name} Elo` : info.name})` : 'Opponent';
+  const { kind, winner } = game.result;
+  const result = winner === 'w' ? '1-0' : winner === 'b' ? '0-1' : '1/2-1/2';
+  const now = new Date();
+  const two = (n) => String(n).padStart(2, '0');
+  const tags = {
+    Event: solo ? 'Chess vs the computer' : 'Chess',
+    Site: 'https://mco.dev/chess/',
+    Date: `${now.getFullYear()}.${two(now.getMonth() + 1)}.${two(now.getDate())}`,
+    White: me === 'w' ? 'You' : them,
+    Black: me === 'b' ? 'You' : them,
+    Result: result,
+  };
+  if (kind === 'resign') tags.Termination = `${winner === 'w' ? 'Black' : 'White'} resigned`;
+  else if (TERMINATION[kind]) tags.Termination = TERMINATION[kind];
+  if (clock) tags.TimeControl = `${clock.base / 1000}+${clock.inc / 1000}`;
+  const words = [];
+  game.san.forEach((san, n) => {
+    if (n % 2 === 0) words.push(`${n / 2 + 1}.`);
+    words.push(san);
+  });
+  words.push(result);
+  const head = Object.entries(tags).map(([k, v]) => `[${k} "${v}"]`).join('\n');
+  return `${head}\n\n${words.join(' ')}\n`;
+}
+
+function analyzeLink() {
+  const params = new URLSearchParams({ pgn: gamePGN(), orient: me === 'w' ? 'white' : 'black' });
+  return `../analyze/?${params}`;
+}
+
 function celebrate() {
+  $('analyze-link').href = analyzeLink();
   const { kind, winner } = game.result;
   const won = winner === me;
   if (kind === 'checkmate') {

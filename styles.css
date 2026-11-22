@@ -525,3 +525,7 @@ body:has(#lobby[hidden]) .copyright { display: none; }
 .segmented span { display: grid; place-items: center; min-block-size: 2.5rem; padding: 0 .4rem; border-radius: 999px; font-weight: 700; font-size: .92rem; color: var(--ink-soft); }
 .segmented input:checked + span { background: var(--surface); color: var(--ink); box-shadow: 0 1px 4px rgb(0 0 0 / .15); }
 .segmented input:focus-visible + span { outline: 3px solid var(--violet); outline-offset: 1px; }
+
+/* The play card is taller than the pitch; keep the title at the top rather than centered beside it. */
+.lobby { align-items: start; }
+.pitch { padding-block-start: clamp(0rem, 3vw, 2.5rem); }

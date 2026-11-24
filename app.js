@@ -128,7 +128,7 @@ let timeControl = null;   // host: the clock chosen for this game, { base, inc }
 let clock = null;         // { base, inc, ms: { w, b }, since }: time left as of `since`
 let solo = null;          // the computer's level when playing it, else null
 let thinking = false;     // the computer is choosing its move
-let learning = false;     // the Learning mode setting: applies to games this player starts
+let learning = false;     // the lobby's Learning mode switch: applies to games this player starts
 let gameLearning = false; // this game is a learning game: both players see the evaluation and can take back
 let takeback = null;     // a take-back request: 'sent' | 'received' | null
 
@@ -760,28 +760,13 @@ $('tc-inc').disabled = $('tc-time').value === '0';
 
 // ── Learning mode: the evaluation and take-backs ─────────────────────────────
 try { learning = localStorage.getItem('chess-learning') === 'on'; } catch {}
-for (const input of document.querySelectorAll('input[name="learning"]')) {
-  input.checked = input.value === (learning ? 'on' : 'off');
-  input.addEventListener('change', () => {
-    learning = input.value === 'on';
-    try { localStorage.setItem('chess-learning', learning ? 'on' : 'off'); } catch {}
-    showLearningNote();
-    if (!game) return;
-    // Against the computer it's your game alone, so the change applies now.
-    // Against a friend, the game keeps what it started with.
-    if (!solo) return toast(`Learning mode ${learning ? 'on' : 'off'} from the next game you start.`);
-    gameLearning = learning;
-    if (!gameLearning) Eval.quiet();
-    shownEval = null;
-    render();
-  });
-}
-
-/** The lobby says whether the games you start will be learning games. */
-function showLearningNote() {
-  $('learn-note').hidden = !learning;
-}
-showLearningNote();
+// The lobby's switch, like the clock, is chosen by whoever starts a game and
+// remembered for next time. A guest gets the host's choice.
+$('learn-toggle').checked = learning;
+$('learn-toggle').addEventListener('change', () => {
+  learning = $('learn-toggle').checked;
+  try { localStorage.setItem('chess-learning', learning ? 'on' : 'off'); } catch {}
+});
 
 const UNDOABLE = new Set([undefined, 'checkmate', 'stalemate', 'repetition', 'fifty', 'material']);
 

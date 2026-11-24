@@ -521,9 +521,6 @@ body:has(#lobby[hidden]) .copyright { display: none; }
 :root:has(> head > meta[name="color-scheme"][content="dark"]) .blobs i { opacity: .16; }
 .segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface-2); }
 .segmented label { position: relative; display: grid; }
-.segmented.two { grid-template-columns: repeat(2, 1fr); max-inline-size: 14rem; }
-.learning-pick { display: grid; gap: .5rem; }
-.learning-pick legend { margin-block-end: .5rem; }
 
 /* ── Learning mode: who's ahead ── */
 .eval { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .7rem; }
@@ -543,11 +540,28 @@ body:has(#lobby[hidden]) .copyright { display: none; }
 .eval-bar::after { content: ""; position: absolute; inset-block: 2px; inset-inline-start: calc(50% - 1px); inline-size: 2px; background: rgb(128 128 128 / .5); }
 .eval-text { min-inline-size: 11rem; font-size: .9rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; text-align: end; }
 .eval-text b { color: var(--ink); font-weight: 900; }
-.learn-note {
-  display: flex; gap: .5rem; align-items: start; margin-block-start: 1rem; padding: .6rem .8rem;
-  border-radius: 14px; font-size: .88rem; background: color-mix(in oklab, var(--sky), transparent 82%);
+/* The lobby's Learning mode switch. */
+.learn-pick {
+  display: flex; align-items: center; gap: .8rem; margin-block: 1rem; padding: .6rem .8rem;
+  border: 2px solid var(--line); border-radius: 18px; cursor: pointer; transition: border-color .15s, background-color .15s;
 }
-.learn-note .link-btn { padding: 0; font-size: inherit; }
+.learn-pick:has(input:checked) { border-color: var(--violet); background: var(--surface-2); }
+.learn-label { display: grid; flex: 1; }
+.learn-label strong > span { margin-inline-end: .35rem; }
+.learn-label small { font-size: .82rem; color: var(--ink-soft); font-weight: 600; }
+.learn-pick input {
+  appearance: none; order: 1; flex: none; position: relative; margin: 0; cursor: pointer;
+  inline-size: 2.9rem; block-size: 1.7rem; border-radius: 999px; background: var(--line);
+  transition: background-color .2s;
+}
+.learn-pick input::before {
+  content: ""; position: absolute; inset-block-start: .2rem; inset-inline-start: .2rem;
+  inline-size: 1.3rem; block-size: 1.3rem; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / .3);
+  transition: translate .2s;
+}
+.learn-pick input:checked { background: var(--violet); }
+.learn-pick input:checked::before { translate: 1.2rem 0; }
+.learn-pick input:focus-visible { outline: 3px solid var(--violet); outline-offset: 3px; }
 @media (max-width: 30rem) { .eval { grid-template-columns: minmax(0, 1fr); gap: .3rem; } .eval-text { text-align: start; min-inline-size: 0; } }
 .segmented input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .segmented span { display: grid; place-items: center; min-block-size: 2.5rem; padding: 0 .4rem; border-radius: 999px; font-weight: 700; font-size: .92rem; color: var(--ink-soft); }

@@ -10,7 +10,7 @@ browser; `engine.js` talks to it over UCI. Strengths from 1350 to 2500 use Stock
 Elo limit (`UCI_Elo`, which can't go below 1320); Beginner and Novice instead ask for its
 top few moves and pick among them at random, favoring the better ones; Max is full strength.
 
-Learning mode (a setting) runs a second Stockfish worker, `eval.js`, that evaluates each
+Learning mode (a switch in the lobby, chosen by whoever starts the game) runs a second Stockfish worker, `eval.js`, that evaluates each
 position for an eval bar, and adds a take-back button. It belongs to the game: the host's setting
 applies to both players (sent with the start and sync messages), and against a friend each
 take-back needs the other player's OK.

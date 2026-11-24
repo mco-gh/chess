@@ -127,7 +127,13 @@
         <span class="seat-name">Opponent</span>
         <span class="clock" id="clock-them" role="timer" aria-label="Opponent’s clock" hidden></span>
         <span class="taken" id="taken-them"></span>
+        <span class="learn-badge" id="learn-them" title="Your opponent sees the evaluation and can ask to take back moves" hidden>📘 Learning</span>
         <span class="link-state" id="link-state" data-state="on"><span class="dot" aria-hidden="true"></span><span id="link-text">Connected</span></span>
+      </div>
+
+      <div class="eval" id="eval" hidden>
+        <div class="eval-bar" aria-hidden="true"><span class="eval-fill" id="eval-fill"></span></div>
+        <p class="eval-text" id="eval-text" aria-live="polite">Thinking…</p>
       </div>
 
       <div class="board-wrap">
@@ -155,6 +161,7 @@
         <span class="taken" id="taken-me"></span>
         <p class="status" id="status" role="status"></p>
         <div class="actions">
+          <button class="btn small ghost" type="button" id="takeback" hidden><span aria-hidden="true">↶</span> Take back</button>
           <button class="btn small ghost" type="button" id="draw" hidden>Offer draw</button>
           <button class="btn small ghost danger-text" type="button" id="resign" command="show-modal" commandfor="resign-ask" hidden>Resign</button>
         </div>
@@ -162,6 +169,11 @@
           <span>Your opponent offers a draw.</span>
           <button class="btn small primary" type="button" id="draw-yes">Accept</button>
           <button class="btn small ghost" type="button" id="draw-no">Decline</button>
+        </div>
+        <div class="offer" id="takeback-offer" role="alert" hidden>
+          <span>Your opponent wants to take back their last move.</span>
+          <button class="btn small primary" type="button" id="takeback-yes">Allow</button>
+          <button class="btn small ghost" type="button" id="takeback-no">Decline</button>
         </div>
       </div>
     </section>
@@ -220,6 +232,12 @@
       <div class="segmented"><label><input type="radio" name="scheme" value="light dark"><span>System</span></label><label><input type="radio" name="scheme" value="light"><span>Light</span></label><label><input type="radio" name="scheme" value="dark"><span>Dark</span></label></div>
     </fieldset>
 
+    <fieldset class="learning-pick">
+      <legend>Learning mode</legend>
+      <div class="segmented two"><label><input type="radio" name="learning" value="off" checked><span>Off</span></label><label><input type="radio" name="learning" value="on"><span>On</span></label></div>
+      <p class="help">Shows who’s ahead, according to Stockfish, and lets you take back your last move. Against a friend, they’re told it’s on and must agree to each take-back.</p>
+    </fieldset>
+
     <fieldset class="piece-styles">
       <legend>Pieces</legend>
       <div class="style-list" id="style-list"></div>
@@ -268,6 +286,10 @@
       <li><strong>Play again</strong> starts a rematch with the colors swapped and the same clock.</li>
       <li><strong>Analyze this game</strong> opens the finished game in <a href="../analyze/" target="_blank" rel="noopener">Analyze</a>, which steps through it with Stockfish: who was winning, the best moves, and every blunder and great move.</li>
     </ul>
+
+    <h3>Learning mode</h3>
+    <p>Turn on <strong>Learning mode</strong> in Settings to see an evaluation above the board: a bar showing how the game stands and a score in pawns (+1.0 is roughly a pawn ahead for white; “mate in 3” means a forced checkmate). It comes from Stockfish, thinking in your browser for a couple of seconds on each position.</p>
+    <p>You also get <strong>Take back</strong>, which undoes your last move (and the reply to it, if there was one). Against the computer it happens straight away. Against a friend, they see that you’re in learning mode, and each take-back needs their OK.</p>
 
     <h3>Playing the computer</h3>
     <p>Pick a strength and choose <strong>Play the computer</strong>. Strengths are Elo ratings, the scale chess uses: about 1350 for a club newcomer, 2200 for a master, 2500 for a grandmaster. Beginner and Novice are gentler still. <strong>Max</strong> is the engine at full strength, far beyond any human.</p>

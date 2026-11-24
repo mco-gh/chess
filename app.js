@@ -5,6 +5,7 @@ import { Board, pieceEl, pieceSVG, redrawPieces } from './board.js';
 import { PIECE_STYLES, setPieceStyle, pieceStyle } from './pieces.js';
 import { openLink, newCode, cleanCode } from './net.js';
 import * as Engine from './engine.js';
+import * as Eval from './eval.js';
 
 const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -127,6 +128,9 @@ let timeControl = null;   // host: the clock chosen for this game, { base, inc }
 let clock = null;         // { base, inc, ms: { w, b }, since }: time left as of `since`
 let solo = null;          // the computer's level when playing it, else null
 let thinking = false;     // the computer is choosing its move
+let learning = false;     // learning mode: the evaluation and take-backs (a setting)
+let takeback = null;     // a take-back request: 'sent' | 'received' | null
+let theyLearn = false;    // the opponent has learning mode on
 
 const board = new Board($('board'), { press: onPress, release: onRelease });
 
@@ -233,7 +237,9 @@ function onPeer() {
   if (!host) return;                    // the host's first message tells a guest what to show
   if (game) {
     drawOffer = null;
+    takeback = null;
     sendSync();
+    announceLearning();
     toast('Your opponent is back.');
     render();
   } else {
@@ -277,6 +283,8 @@ function toLobby(error = '') {
   thinking = false;
   clock = null;
   peerHere = false;
+  takeback = null;
+  Eval.quiet();
   cancelPromo?.();
   stopMedia();
   showRemote(null);
@@ -430,9 +438,13 @@ function begin() {
   cancelPromo?.();
   selected = null;
   drawOffer = null;
+  takeback = null;
+  theyLearn = false;
   celebrated = false;
   thinking = false;
   shownMoves = -1;
+  shownEval = null;
+  announceLearning();
   $('confetti').replaceChildren();
   show('game');
   $('game').classList.toggle('solo', Boolean(solo));
@@ -511,12 +523,18 @@ function render(how = {}) {
   $('draw').disabled = drawOffer === 'sent';
   $('draw').textContent = drawOffer === 'sent' ? 'Draw offered' : 'Offer draw';
   $('offer').hidden = !(playing && drawOffer === 'received');
+  $('takeback').hidden = !(learning && canTakeBack());
+  $('takeback').disabled = takeback === 'sent';
+  $('takeback').lastChild.textContent = takeback === 'sent' ? ' Asked…' : ' Take back';
+  $('takeback-offer').hidden = takeback !== 'received';
+  $('learn-them').hidden = !theyLearn || Boolean(solo);
 
   $('link-state').dataset.state = peerHere ? 'on' : 'off';
   $('link-text').textContent = peerHere ? 'Connected' : host ? `Away. They can rejoin with ${code}` : 'Disconnected';
 
   showMoves();
   showClocks();
+  showEval();
 
   $('over').hidden = playing;
   if (result) {
@@ -609,6 +627,7 @@ function commit(move) {
   send({ t: 'move', from: move.from, to: move.to, promo: move.promo ?? null, n: game.moves.length, left });
   selected = null;
   drawOffer = null;                     // moving on turns down an offer, and withdraws your own
+  takeback = null;
   render({ move });       // board.js settles a dragged piece without a glide
 }
 
@@ -741,6 +760,140 @@ function clockChoiceChanged() {
 $('tc-time').addEventListener('change', clockChoiceChanged);
 $('tc-inc').addEventListener('change', clockChoiceChanged);
 $('tc-inc').disabled = $('tc-time').value === '0';
+
+// ── Learning mode: the evaluation and take-backs ─────────────────────────────
+try { learning = localStorage.getItem('chess-learning') === 'on'; } catch {}
+for (const input of document.querySelectorAll('input[name="learning"]')) {
+  input.checked = input.value === (learning ? 'on' : 'off');
+  input.addEventListener('change', () => {
+    learning = input.value === 'on';
+    try { localStorage.setItem('chess-learning', learning ? 'on' : 'off'); } catch {}
+    if (!learning) Eval.quiet();
+    if (!learning && takeback === 'sent') takeback = null;
+    shownEval = null;
+    announceLearning();
+    render();
+  });
+}
+
+/** Let the other player know (they should, since it's an engine at your elbow). */
+function announceLearning() {
+  if (!solo && game) send({ t: 'learning', on: learning });
+}
+
+const UNDOABLE = new Set([undefined, 'checkmate', 'stalemate', 'repetition', 'fifty', 'material']);
+
+/** How many moves come off when `color` takes back their last move: theirs, and the reply if any. 0 if they can't. */
+function takebackPlies(color) {
+  if (!game || !UNDOABLE.has(game.result?.kind)) return 0;
+  const plies = game.pos.turn === color ? 2 : 1;
+  return game.moves.length >= plies ? plies : 0;
+}
+
+function canTakeBack() {
+  if (!takebackPlies(me) || cancelPromo) return false;
+  if (solo) return true;
+  return takeback !== 'received' && Boolean(link?.connected);
+}
+
+/** Undo `color`'s last move (and the reply to it). Both browsers do this in step. */
+function takeBack(color) {
+  const plies = takebackPlies(color);
+  if (!plies) return render();
+  if (clockRuns()) clock.ms[game.pos.turn] = remaining(game.pos.turn);   // freeze, then restart below
+  const undone = game.moves.slice(-plies).reverse();
+  const rebuilt = Chess.replay(game.moves.slice(0, -plies));
+  if (!rebuilt) return render();
+  if (solo) Engine.stop();
+  thinking = false;
+  cancelPromo?.();
+  game = rebuilt;
+  if (clock) clock.since = performance.now();
+  selected = null;
+  drawOffer = null;
+  celebrated = false;
+  $('confetti').replaceChildren();
+  // Slide each piece back the way it came: the last move first, then the one before.
+  const steps = Chess.replay(game.moves.concat(undone.slice(1).reverse()));
+  if (plies === 2 && steps) board.sync(steps.pos.board, { move: { from: undone[0].to, to: undone[0].from } });
+  render({ move: { from: undone[plies - 1].to, to: undone[plies - 1].from } });
+}
+
+$('takeback').addEventListener('click', () => {
+  if (!learning || !canTakeBack()) return;
+  if (solo) return takeBack(me);
+  takeback = 'sent';
+  send({ t: 'takeback', n: game.moves.length });
+  toast('Asked your opponent to let you take it back…');
+  render();
+});
+
+$('takeback-yes').addEventListener('click', () => {
+  if (takeback !== 'received' || !game) return;
+  takeback = null;
+  send({ t: 'takeback-yes', n: game.moves.length });
+  takeBack(Chess.other(me));
+});
+
+$('takeback-no').addEventListener('click', () => {
+  if (takeback !== 'received') return;
+  takeback = null;
+  send({ t: 'takeback-no' });
+  render();
+});
+
+// The evaluation: a bar (white's share fills from white's side) and a line of words.
+let shownEval = null;      // the position (as its move count and game) now being evaluated
+
+/** White's chance of winning, 0–100, from a score in centipawns (the curve Lichess uses). */
+const whiteShare = (cp) => 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
+
+function setEval(share, html) {
+  $('eval').style.setProperty('--white', `${Math.max(0, Math.min(100, share))}%`);
+  $('eval-text').innerHTML = html;
+}
+
+function describe(score, turn) {
+  // Stockfish scores for the side to move; turn them to white's point of view.
+  const sign = turn === 'w' ? 1 : -1;
+  if (score.mate !== undefined) {
+    const mate = score.mate * sign;
+    const winner = mate > 0 ? 'White' : 'Black';
+    return { share: mate > 0 ? 100 : 0, html: `<b>${winner}</b> mates in ${Math.abs(mate)}` };
+  }
+  const cp = score.cp * sign;
+  const pawns = (cp / 100).toFixed(1);
+  const shown = cp > 0 ? `+${pawns}` : cp < 0 ? pawns.replace('-', '−') : '0.0';
+  const size = Math.abs(cp);
+  const who = cp > 0 ? 'White' : 'Black';
+  const words = size < 35 ? 'About even' : size < 100 ? `${who} is slightly better` : size < 250 ? `${who} is better` : `${who} is winning`;
+  return { share: whiteShare(cp), html: `<b>${shown}</b> · ${words}` };
+}
+
+function showEval() {
+  $('eval').hidden = !learning || !game;
+  if (!learning || !game) return;
+  $('eval').dataset.side = me;
+  if (shownEval?.game === game && shownEval.n === game.moves.length) return;
+  const current = game;
+  const n = game.moves.length;
+  shownEval = { game, n };
+  const { result, pos } = game;
+  if (result?.kind === 'checkmate') {
+    Eval.quiet();
+    return setEval(result.winner === 'w' ? 100 : 0, `<b>Checkmate</b> · ${result.winner === 'w' ? 'White' : 'Black'} wins`);
+  }
+  if (result && result.kind !== 'resign' && result.kind !== 'time') {
+    Eval.quiet();
+    return setEval(50, '<b>0.0</b> · Drawn');
+  }
+  $('eval-text').textContent = 'Thinking…';
+  Eval.analyze(game.moves, (score) => {
+    if (game !== current || game.moves.length !== n || !learning) return;
+    const { share, html } = describe(score, pos.turn);
+    setEval(share, html);
+  }).catch(() => { $('eval-text').textContent = 'The evaluation isn’t available.'; });
+}
 
 // ── Draws, resigning, rematches ──────────────────────────────────────────────
 $('draw').addEventListener('click', () => {
@@ -894,6 +1047,24 @@ function onMessage(message) {
     case 'time':
       if (!game || game.result || !clockRuns() || message.loser !== game.pos.turn) return;
       return timeOut(message.loser);
+    case 'learning':
+      theyLearn = message.on === true;
+      return render();
+    case 'takeback':
+      if (!game || message.n !== game.moves.length || !takebackPlies(Chess.other(me))) return;
+      takeback = 'received';
+      toast('Your opponent asks to take back their last move.');
+      return render();
+    case 'takeback-yes':
+      if (takeback !== 'sent' || !game || message.n !== game.moves.length) return;
+      takeback = null;
+      toast('Move taken back.');
+      return takeBack(me);
+    case 'takeback-no':
+      if (takeback !== 'sent') return;
+      takeback = null;
+      toast('Your opponent said no to the take-back.');
+      return render();
     case 'draw-offer':
       if (!game || game.result) return;
       drawOffer = 'received';
@@ -923,6 +1094,8 @@ function theirMove(message) {
   // Each player's own clock is the one that counts; ours of theirs is only an estimate.
   punch(them, Number.isFinite(message.left) && message.left >= 0 ? Math.min(message.left, DAY) : estimate);
   drawOffer = null;
+  if (takeback === 'sent') toast('Your opponent played on instead.');
+  takeback = null;
   render({ move });
 }
 

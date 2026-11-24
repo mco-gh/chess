@@ -128,9 +128,9 @@ let timeControl = null;   // host: the clock chosen for this game, { base, inc }
 let clock = null;         // { base, inc, ms: { w, b }, since }: time left as of `since`
 let solo = null;          // the computer's level when playing it, else null
 let thinking = false;     // the computer is choosing its move
-let learning = false;     // learning mode: the evaluation and take-backs (a setting)
+let learning = false;     // the Learning mode setting: applies to games this player starts
+let gameLearning = false; // this game is a learning game: both players see the evaluation and can take back
 let takeback = null;     // a take-back request: 'sent' | 'received' | null
-let theyLearn = false;    // the opponent has learning mode on
 
 const board = new Board($('board'), { press: onPress, release: onRelease });
 
@@ -189,7 +189,7 @@ function setLobby(state, error = '') {
   $('lobby-error').textContent = error;
   if (state === 'waiting') {
     $('code-text').textContent = code;
-    const withClock = timeControl ? `, ${describeClock(timeControl)}` : '';
+    const withClock = (timeControl ? `, ${describeClock(timeControl)}` : '') + (learning ? ', in learning mode' : '');
     $('waiting-text').textContent = `You play ${me === 'w' ? 'white' : 'black'}${withClock}. Waiting for them to join…`;
   }
 }
@@ -239,7 +239,6 @@ function onPeer() {
     drawOffer = null;
     takeback = null;
     sendSync();
-    announceLearning();
     toast('Your opponent is back.');
     render();
   } else {
@@ -421,15 +420,16 @@ addEventListener('pagehide', (event) => { if (!event.persisted) link?.close(); }
 // ── The game ─────────────────────────────────────────────────────────────────
 const send = (message) => link?.send(message);
 const sendSync = () => send({
-  t: 'sync', hostSide: me, moves: game.moves, result: game.result,
+  t: 'sync', hostSide: me, moves: game.moves, result: game.result, learn: gameLearning,
   tc: timeControl, ms: clock && { w: remaining('w'), b: remaining('b') },
 });
 
 function startGame() {
   game = Chess.newGame();
   clock = newClock(timeControl);
+  gameLearning = learning;           // the host's setting decides, for both players
   if (solo) Engine.newGame();
-  else send({ t: 'start', hostSide: me, tc: timeControl });
+  else send({ t: 'start', hostSide: me, tc: timeControl, learn: gameLearning });
   begin();
 }
 
@@ -439,12 +439,10 @@ function begin() {
   selected = null;
   drawOffer = null;
   takeback = null;
-  theyLearn = false;
   celebrated = false;
   thinking = false;
   shownMoves = -1;
   shownEval = null;
-  announceLearning();
   $('confetti').replaceChildren();
   show('game');
   $('game').classList.toggle('solo', Boolean(solo));
@@ -523,11 +521,10 @@ function render(how = {}) {
   $('draw').disabled = drawOffer === 'sent';
   $('draw').textContent = drawOffer === 'sent' ? 'Draw offered' : 'Offer draw';
   $('offer').hidden = !(playing && drawOffer === 'received');
-  $('takeback').hidden = !(learning && canTakeBack());
+  $('takeback').hidden = !(gameLearning && canTakeBack());
   $('takeback').disabled = takeback === 'sent';
   $('takeback').lastChild.textContent = takeback === 'sent' ? ' Asked…' : ' Take back';
   $('takeback-offer').hidden = takeback !== 'received';
-  $('learn-them').hidden = !theyLearn || Boolean(solo);
 
   $('link-state').dataset.state = peerHere ? 'on' : 'off';
   $('link-text').textContent = peerHere ? 'Connected' : host ? `Away. They can rejoin with ${code}` : 'Disconnected';
@@ -768,18 +765,23 @@ for (const input of document.querySelectorAll('input[name="learning"]')) {
   input.addEventListener('change', () => {
     learning = input.value === 'on';
     try { localStorage.setItem('chess-learning', learning ? 'on' : 'off'); } catch {}
-    if (!learning) Eval.quiet();
-    if (!learning && takeback === 'sent') takeback = null;
+    showLearningNote();
+    if (!game) return;
+    // Against the computer it's your game alone, so the change applies now.
+    // Against a friend, the game keeps what it started with.
+    if (!solo) return toast(`Learning mode ${learning ? 'on' : 'off'} from the next game you start.`);
+    gameLearning = learning;
+    if (!gameLearning) Eval.quiet();
     shownEval = null;
-    announceLearning();
     render();
   });
 }
 
-/** Let the other player know (they should, since it's an engine at your elbow). */
-function announceLearning() {
-  if (!solo && game) send({ t: 'learning', on: learning });
+/** The lobby says whether the games you start will be learning games. */
+function showLearningNote() {
+  $('learn-note').hidden = !learning;
 }
+showLearningNote();
 
 const UNDOABLE = new Set([undefined, 'checkmate', 'stalemate', 'repetition', 'fifty', 'material']);
 
@@ -820,7 +822,7 @@ function takeBack(color) {
 }
 
 $('takeback').addEventListener('click', () => {
-  if (!learning || !canTakeBack()) return;
+  if (!gameLearning || !canTakeBack()) return;
   if (solo) return takeBack(me);
   takeback = 'sent';
   send({ t: 'takeback', n: game.moves.length });
@@ -871,8 +873,8 @@ function describe(score, turn) {
 }
 
 function showEval() {
-  $('eval').hidden = !learning || !game;
-  if (!learning || !game) return;
+  $('eval').hidden = !gameLearning || !game;
+  if (!gameLearning || !game) return;
   $('eval').dataset.side = me;
   if (shownEval?.game === game && shownEval.n === game.moves.length) return;
   const current = game;
@@ -889,7 +891,7 @@ function showEval() {
   }
   $('eval-text').textContent = 'Thinking…';
   Eval.analyze(game.moves, (score) => {
-    if (game !== current || game.moves.length !== n || !learning) return;
+    if (game !== current || game.moves.length !== n || !gameLearning) return;
     const { share, html } = describe(score, pos.turn);
     setEval(share, html);
   }).catch(() => { $('eval-text').textContent = 'The evaluation isn’t available.'; });
@@ -1022,7 +1024,10 @@ function onMessage(message) {
       me = Chess.other(message.hostSide);
       game = Chess.newGame();
       clock = newClock(validClock(message.tc));
-      return begin();
+      gameLearning = message.learn === true;
+      begin();
+      if (gameLearning) toast('📘 A learning game: you both see the evaluation and can take back moves.');
+      return;
     case 'sync': {
       if (host || !['w', 'b'].includes(message.hostSide)) return;
       const rebuilt = Chess.replay(message.moves, message.result);
@@ -1030,6 +1035,7 @@ function onMessage(message) {
       me = Chess.other(message.hostSide);
       game = rebuilt;
       clock = newClock(validClock(message.tc), message.ms);
+      gameLearning = message.learn === true;
       return begin();
     }
     case 'resync':
@@ -1047,11 +1053,8 @@ function onMessage(message) {
     case 'time':
       if (!game || game.result || !clockRuns() || message.loser !== game.pos.turn) return;
       return timeOut(message.loser);
-    case 'learning':
-      theyLearn = message.on === true;
-      return render();
     case 'takeback':
-      if (!game || message.n !== game.moves.length || !takebackPlies(Chess.other(me))) return;
+      if (!game || !gameLearning || message.n !== game.moves.length || !takebackPlies(Chess.other(me))) return;
       takeback = 'received';
       toast('Your opponent asks to take back their last move.');
       return render();

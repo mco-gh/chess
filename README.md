@@ -11,8 +11,9 @@ Elo limit (`UCI_Elo`, which can't go below 1320); Beginner and Novice instead as
 top few moves and pick among them at random, favoring the better ones; Max is full strength.
 
 Learning mode (a setting) runs a second Stockfish worker, `eval.js`, that evaluates each
-position for an eval bar, and adds a take-back button. Against a friend, the other player is
-told it is on and has to agree to each take-back.
+position for an eval bar, and adds a take-back button. It belongs to the game: the host's setting
+applies to both players (sent with the start and sync messages), and against a friend each
+take-back needs the other player's OK.
 
 It is a static app with no build step: open `index.html` from any web server. The two players connect directly to each other using [PeerJS](https://peerjs.com/) (vendored in `vendor/`).
 

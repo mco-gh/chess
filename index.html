@@ -61,6 +61,8 @@
           <button class="link-btn" type="button" command="show-modal" commandfor="settings">Change colors</button>
         </fieldset>
 
+        <p class="learn-note" id="learn-note" hidden><span aria-hidden="true">📘</span> <span><strong>Learning mode is on.</strong> In games you start, both players see the evaluation and can take back moves. <button class="link-btn" type="button" command="show-modal" commandfor="settings">Change</button></span></p>
+
         <form id="start-form" class="stack">
           <fieldset class="clock-pick">
             <legend>Clock <span class="optional">(optional)</span></legend>
@@ -127,7 +129,6 @@
         <span class="seat-name">Opponent</span>
         <span class="clock" id="clock-them" role="timer" aria-label="Opponent’s clock" hidden></span>
         <span class="taken" id="taken-them"></span>
-        <span class="learn-badge" id="learn-them" title="Your opponent sees the evaluation and can ask to take back moves" hidden>📘 Learning</span>
         <span class="link-state" id="link-state" data-state="on"><span class="dot" aria-hidden="true"></span><span id="link-text">Connected</span></span>
       </div>
 
@@ -235,7 +236,7 @@
     <fieldset class="learning-pick">
       <legend>Learning mode</legend>
       <div class="segmented two"><label><input type="radio" name="learning" value="off" checked><span>Off</span></label><label><input type="radio" name="learning" value="on"><span>On</span></label></div>
-      <p class="help">Shows who’s ahead, according to Stockfish, and lets you take back your last move. Against a friend, they’re told it’s on and must agree to each take-back.</p>
+      <p class="help">Shows who’s ahead, according to Stockfish, and lets you take back your last move. It applies to games you start, for both players: if you join a friend’s game, their setting decides.</p>
     </fieldset>
 
     <fieldset class="piece-styles">
@@ -288,8 +289,8 @@
     </ul>
 
     <h3>Learning mode</h3>
-    <p>Turn on <strong>Learning mode</strong> in Settings to see an evaluation above the board: a bar showing how the game stands and a score in pawns (+1.0 is roughly a pawn ahead for white; “mate in 3” means a forced checkmate). It comes from Stockfish, thinking in your browser for a couple of seconds on each position.</p>
-    <p>You also get <strong>Take back</strong>, which undoes your last move (and the reply to it, if there was one). Against the computer it happens straight away. Against a friend, they see that you’re in learning mode, and each take-back needs their OK.</p>
+    <p>Learning mode belongs to the game: whoever starts it decides, with the <strong>Learning mode</strong> setting, and it’s the same for both players. In a learning game you see an evaluation above the board: a bar showing how the game stands and a score in pawns (+1.0 is roughly a pawn ahead for white; “mate in 3” means a forced checkmate). It comes from Stockfish, thinking in your browser for a couple of seconds on each position.</p>
+    <p>You also get <strong>Take back</strong>, which undoes your last move (and the reply to it, if there was one). Against the computer it happens straight away (and you can switch learning mode on or off mid-game). Against a friend, each take-back needs their OK, and changing the setting takes effect from the next game you start.</p>
 
     <h3>Playing the computer</h3>
     <p>Pick a strength and choose <strong>Play the computer</strong>. Strengths are Elo ratings, the scale chess uses: about 1350 for a club newcomer, 2200 for a master, 2500 for a grandmaster. Beginner and Novice are gentler still. <strong>Max</strong> is the engine at full strength, far beyond any human.</p>

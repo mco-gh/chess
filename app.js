@@ -124,6 +124,7 @@ let cancelPromo = null;   // closes the promotion picker, if it is open
 let peerHere = false;
 let celebrated = false;
 let shownMoves = -1;
+let overClosed = false;   // the result popup was closed for this game
 let timeControl = null;   // host: the clock chosen for this game, { base, inc } in ms, or null
 let clock = null;         // { base, inc, ms: { w, b }, since }: time left as of `since`
 let solo = null;          // the computer's level when playing it, else null
@@ -440,6 +441,7 @@ function begin() {
   drawOffer = null;
   takeback = null;
   celebrated = false;
+  overClosed = false;
   thinking = false;
   shownMoves = -1;
   shownEval = null;
@@ -533,7 +535,8 @@ function render(how = {}) {
   showClocks();
   showEval();
 
-  $('over').hidden = playing;
+  $('over').hidden = playing || overClosed;
+  $('show-result').hidden = playing || !overClosed;
   if (result) {
     if ($('resign-ask').open) $('resign-ask').close();
     celebrate();
@@ -799,6 +802,7 @@ function takeBack(color) {
   selected = null;
   drawOffer = null;
   celebrated = false;
+  overClosed = false;
   $('confetti').replaceChildren();
   // Slide each piece back the way it came: the last move first, then the one before.
   const steps = Chess.replay(game.moves.concat(undone.slice(1).reverse()));
@@ -919,6 +923,16 @@ function rematch() {
   me = Chess.other(me);
   startGame();
 }
+
+$('over-close').addEventListener('click', () => {
+  overClosed = true;
+  render();
+});
+
+$('show-result').addEventListener('click', () => {
+  overClosed = false;
+  render();
+});
 
 $('again').addEventListener('click', () => {
   if (!game?.result) return;

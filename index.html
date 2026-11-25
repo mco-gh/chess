@@ -148,17 +148,17 @@
           <div class="promo-row" id="promo-row" role="group" aria-labelledby="promo-title"></div>
           <button class="btn small" type="button" id="promo-cancel">Cancel</button>
         </div>
-      </div>
-
-      <div class="over" id="over" role="status" hidden>
-        <span class="over-icon" id="over-icon" aria-hidden="true"></span>
-        <div class="over-words">
-          <p class="over-title" id="over-title"></p>
-          <p class="over-sub" id="over-sub"></p>
-        </div>
-        <div class="over-actions">
-          <button class="btn small primary" type="button" id="again">Play again</button>
-          <a class="btn small" id="analyze-link" href="../analyze/" target="_blank" rel="noopener"><span aria-hidden="true">🔍</span> Analyze</a>
+        <div class="over" id="over" role="status" hidden>
+          <span class="over-icon" id="over-icon" aria-hidden="true"></span>
+          <div class="over-words">
+            <p class="over-title" id="over-title"></p>
+            <p class="over-sub" id="over-sub"></p>
+          </div>
+          <div class="over-actions">
+            <button class="btn small primary" type="button" id="again">Play again</button>
+            <a class="btn small" id="analyze-link" href="../analyze/" target="_blank" rel="noopener"><span aria-hidden="true">🔍</span> Analyze</a>
+          </div>
+          <button class="over-close" type="button" id="over-close" aria-label="Close">×</button>
         </div>
       </div>
 
@@ -170,6 +170,7 @@
         <p class="status" id="status" role="status"></p>
         <div class="actions">
           <button class="btn small ghost" type="button" id="takeback" hidden><span aria-hidden="true">↶</span> Take back</button>
+          <button class="btn small primary" type="button" id="show-result" hidden>Show result</button>
           <button class="btn small ghost" type="button" id="draw" hidden>Offer draw</button>
           <button class="btn small ghost danger-text" type="button" id="resign" command="show-modal" commandfor="resign-ask" hidden>Resign</button>
         </div>

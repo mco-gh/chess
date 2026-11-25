@@ -229,7 +229,7 @@ a { color: var(--violet); }
 @media (max-width: 60rem) { .game { grid-template-columns: minmax(0, 1fr); } }
 
 .table { display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; justify-items: center; }
-.board-wrap, .seat, .eval, .over { inline-size: min(100%, max(18rem, 100dvh - 14rem)); }
+.board-wrap, .seat, .eval { inline-size: min(100%, max(18rem, 100dvh - 14rem)); }
 .board-wrap { position: relative; }
 
 .seat {
@@ -323,27 +323,41 @@ a { color: var(--violet); }
 .promo-row .pc { display: block; }
 
 /* ── Game over ── */
-/* The result sits under the board, not on it, so the final position stays in view. */
+/* The result pops up just above the board, over the opponent's seat, so the
+   final position stays in view. A small tail points down at the board. */
 .over {
-  display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .8rem; padding: .55rem .8rem;
+  position: absolute; z-index: 3; inset-block-end: calc(100% - .4rem); inset-inline: 0; margin-inline: auto;
+  inline-size: 100%;
+  display: flex; align-items: center; flex-wrap: wrap; gap: .4rem .7rem; padding: .5rem 2.1rem .5rem .8rem;
   border-radius: 18px; background: var(--surface); border: 2px solid var(--line);
-  box-shadow: 0 6px 18px -12px rgb(40 20 90 / .5);
+  box-shadow: 0 14px 30px -10px rgb(40 20 90 / .55);
 }
+.over::after {
+  content: ""; position: absolute; inset-block-start: 100%; inset-inline-start: calc(50% - .5rem);
+  border: .5rem solid transparent; border-block-start-color: var(--tail, var(--surface));
+}
+.over[data-outcome="won"] { --tail: light-dark(#a243b6, #a955c0); }
+.over-close {
+  position: absolute; inset-block-start: .3rem; inset-inline-end: .35rem; inline-size: 1.6rem; block-size: 1.6rem;
+  display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: none;
+  font-size: 1.2rem; line-height: 1; color: inherit; opacity: .7; cursor: pointer;
+}
+.over-close:hover { opacity: 1; background: rgb(128 128 128 / .18); }
 .over[data-outcome="won"] {
   border-color: transparent; color: #fff;
   background: linear-gradient(135deg, light-dark(#6c4cf1, #7a5cf5), light-dark(#d93a7c, #d94f8a));
 }
 .over[data-outcome="drawn"] { border-color: var(--sky); }
 .over-icon { font-size: 1.6rem; line-height: 1; }
-.over-words { flex: 1; min-inline-size: 11rem; }
+.over-words { flex: 1 1 auto; min-inline-size: 9rem; }
 .over-title { font-size: 1.1rem; font-weight: 900; line-height: 1.25; }
 .over-sub { font-size: .88rem; font-weight: 600; opacity: .85; }
 .over-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-inline-start: auto; }
 .over-actions a.btn { color: var(--ink); text-decoration: none; }
 .over[data-outcome="won"] .btn.primary { background: #fff; color: #6c4cf1; box-shadow: none; }
 @media (prefers-reduced-motion: no-preference) {
-  .over:not([hidden]) { animation: over-in .35s cubic-bezier(.3, .1, .2, 1.2); }
-  @keyframes over-in { from { opacity: 0; translate: 0 -8px; } }
+  .over:not([hidden]) { animation: over-in .35s cubic-bezier(.3, .1, .2, 1.3); transform-origin: 50% 100%; }
+  @keyframes over-in { from { opacity: 0; scale: .85; translate: 0 8px; } }
 }
 .confetti { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; border-radius: 3.5%; }
 .confetti i { display: none; }

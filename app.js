@@ -508,7 +508,7 @@ function render(how = {}) {
   showTaken($('taken-them'), taken[Chess.other(me)], -lead);
 
   let status = '';
-  if (result) status = 'Game over.';
+  if (result) status = '';             // the result has its own banner under the board
   else if (!game.moves.length) status = myTurn ? 'You play white. Your move.' : 'You play black. White moves first.';
   else if (myTurn) status = game.check ? 'Check! Your move.' : 'Your move.';
   else if (solo) status = game.check ? 'Check! The computer is thinking…' : 'The computer is thinking…';
@@ -973,18 +973,20 @@ function celebrate() {
   const { kind, winner } = game.result;
   const won = winner === me;
   if (kind === 'checkmate') {
-    $('over-title').textContent = won ? 'Checkmate! You win 🎉' : 'Checkmate';
+    $('over-title').textContent = won ? 'Checkmate! You win' : 'Checkmate';
     $('over-sub').textContent = won ? 'Nicely played.' : `${solo ? 'The computer' : 'Your opponent'} wins. Fancy a rematch?`;
   } else if (kind === 'resign') {
-    $('over-title').textContent = won ? 'You win! 🎉' : 'You resigned';
+    $('over-title').textContent = won ? 'You win!' : 'You resigned';
     $('over-sub').textContent = won ? 'Your opponent resigned.' : `${solo ? 'The computer' : 'Your opponent'} wins. Fancy a rematch?`;
   } else if (kind === 'time' && winner) {
-    $('over-title').textContent = won ? 'You win on time! 🎉' : 'Out of time';
+    $('over-title').textContent = won ? 'You win on time!' : 'Out of time';
     $('over-sub').textContent = won ? 'Your opponent’s clock ran out.' : 'Your opponent wins. Fancy a rematch?';
   } else {
-    $('over-title').textContent = 'It’s a draw 🤝';
+    $('over-title').textContent = 'It’s a draw';
     $('over-sub').textContent = RESULTS[kind];
   }
+  $('over').dataset.outcome = won ? 'won' : winner ? 'lost' : 'drawn';
+  $('over-icon').textContent = won ? '🏆' : winner ? '🏳️' : '🤝';
   if (celebrated) return;
   celebrated = true;
   const confetti = $('confetti');

@@ -229,7 +229,7 @@ a { color: var(--violet); }
 @media (max-width: 60rem) { .game { grid-template-columns: minmax(0, 1fr); } }
 
 .table { display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; justify-items: center; }
-.board-wrap, .seat, .eval { inline-size: min(100%, max(18rem, 100dvh - 14rem)); }
+.board-wrap, .seat, .eval, .over { inline-size: min(100%, max(18rem, 100dvh - 14rem)); }
 .board-wrap { position: relative; }
 
 .seat {
@@ -323,16 +323,28 @@ a { color: var(--violet); }
 .promo-row .pc { display: block; }
 
 /* ── Game over ── */
+/* The result sits under the board, not on it, so the final position stays in view. */
 .over {
-  position: absolute; inset: 0; margin: auto; z-index: 2; inline-size: fit-content; block-size: fit-content;
-  max-inline-size: 88%; display: grid; justify-items: center; gap: .5rem; padding: 1.2rem 1.6rem;
-  border-radius: 24px; text-align: center; color: #fff;
-  background: rgb(20 12 50 / .84); backdrop-filter: blur(4px); box-shadow: 0 18px 40px rgb(0 0 0 / .45);
+  display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .8rem; padding: .55rem .8rem;
+  border-radius: 18px; background: var(--surface); border: 2px solid var(--line);
+  box-shadow: 0 6px 18px -12px rgb(40 20 90 / .5);
 }
-.over-title { font-size: clamp(1.4rem, 4vw, 2.2rem); font-weight: 900; text-wrap: balance; }
-.over-sub { margin-block-end: .4rem; text-wrap: balance; }
-.over-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
+.over[data-outcome="won"] {
+  border-color: transparent; color: #fff;
+  background: linear-gradient(135deg, light-dark(#6c4cf1, #7a5cf5), light-dark(#d93a7c, #d94f8a));
+}
+.over[data-outcome="drawn"] { border-color: var(--sky); }
+.over-icon { font-size: 1.6rem; line-height: 1; }
+.over-words { flex: 1; min-inline-size: 11rem; }
+.over-title { font-size: 1.1rem; font-weight: 900; line-height: 1.25; }
+.over-sub { font-size: .88rem; font-weight: 600; opacity: .85; }
+.over-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-inline-start: auto; }
 .over-actions a.btn { color: var(--ink); text-decoration: none; }
+.over[data-outcome="won"] .btn.primary { background: #fff; color: #6c4cf1; box-shadow: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .over:not([hidden]) { animation: over-in .35s cubic-bezier(.3, .1, .2, 1.2); }
+  @keyframes over-in { from { opacity: 0; translate: 0 -8px; } }
+}
 .confetti { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; border-radius: 3.5%; }
 .confetti i { display: none; }
 @media (prefers-reduced-motion: no-preference) {
